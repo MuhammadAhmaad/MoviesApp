@@ -1,6 +1,9 @@
 package com.companyname.movies.moviesapp;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -44,7 +47,13 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         mFilmRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
         mAdapter = new FilmsAdapter(this);
         currentPage = "popular";
-        new FetchFilmsTask().execute("popular");
+        if(isConnected())
+            new FetchFilmsTask().execute("popular");
+        else
+        {
+            showErrorMessage();
+            mErrorTextView.setText("No internet Connection");
+        }
     }
 
     public void showLoading() {
@@ -76,10 +85,22 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         int id = item.getItemId();
         if (id == R.id.menu_popular && !currentPage.equals("popular")) {
             currentPage = "popular";
-            new FetchFilmsTask().execute("popular");
+            if(isConnected())
+                new FetchFilmsTask().execute("popular");
+            else
+            {
+                showErrorMessage();
+                mErrorTextView.setText("No internet Connection");
+            }
         } else if (id == R.id.menu_top_rated && !currentPage.equals("top_rated")) {
             currentPage = "top_rated";
-            new FetchFilmsTask().execute("top_rated");
+            if(isConnected())
+                new FetchFilmsTask().execute("top_rated");
+            else
+            {
+                showErrorMessage();
+                mErrorTextView.setText("No internet Connection");
+            }
         }
         return super.onOptionsItemSelected(item);
     }
@@ -91,6 +112,16 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         startActivity(movieDetailIntent);
     }
 
+    public boolean isConnected()
+    {
+        ConnectivityManager cm =
+                (ConnectivityManager)this.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
+        return isConnected;
+    }
     public class FetchFilmsTask extends AsyncTask<String, Void, ArrayList<Film>> {
         @Override
         protected void onPreExecute() {
@@ -139,4 +170,5 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
             }
         }
     }
+
 }
