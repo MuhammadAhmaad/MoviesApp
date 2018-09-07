@@ -1,19 +1,27 @@
 package com.companyname.movies.moviesapp.model;
 
+import android.arch.persistence.room.ColumnInfo;
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
+import android.arch.persistence.room.PrimaryKey;
+
 import java.io.Serializable;
 
 /**
  * Created by Mohamed Ahmed on 8/6/2018.
  */
-
+@Entity(tableName = "films")
 public class Film implements Serializable {
+    @PrimaryKey
     private int id;
     private String title;
     private String image;
     private String overview;
+    @ColumnInfo(name = "release_date")
     private String releaseDate;
     private String rating;
 
+    @Ignore
     public Film()
     {
 

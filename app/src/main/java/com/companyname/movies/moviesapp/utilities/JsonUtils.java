@@ -3,6 +3,8 @@ package com.companyname.movies.moviesapp.utilities;
 import android.util.Log;
 
 import com.companyname.movies.moviesapp.model.Film;
+import com.companyname.movies.moviesapp.model.Review;
+import com.companyname.movies.moviesapp.model.Trailer;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -50,5 +52,56 @@ public class JsonUtils {
         }
         return filmArrayList;
 
+    }
+
+    public static ArrayList<Review> parseReviewFilm(String jsonResponse) {
+        final String AUTHOR = "author";
+        final String CONTENT = "content";
+        final String RESULTS = "results";
+        Review review;
+        JSONObject jsonReviewObject;
+        ArrayList<Review>reviewArrayList=null;
+
+        try {
+            jsonReviewObject = new JSONObject(jsonResponse);
+            JSONArray jsonReviewsArray = jsonReviewObject.getJSONArray(RESULTS);
+            reviewArrayList = new ArrayList<>();
+            for (int i=0;i<jsonReviewsArray.length();i++)
+            {
+                JSONObject jsonObject = jsonReviewsArray.getJSONObject(i);
+                review = new Review();
+                review.setAuthor(jsonObject.getString(AUTHOR));
+                review.setContent(jsonObject.getString(CONTENT));
+                reviewArrayList.add(review);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return reviewArrayList;
+    }
+
+    public static ArrayList<Trailer> parseTrailersJson(String jsonResponse) {
+        final String KEY = "key";
+        final String RESULTS = "results";
+        Trailer trailer;
+        JSONObject jsonTrailerObject;
+        ArrayList<Trailer>trailerArrayList=null;
+
+        try {
+            jsonTrailerObject = new JSONObject(jsonResponse);
+            JSONArray jsonTrailersArray = jsonTrailerObject.getJSONArray(RESULTS);
+            trailerArrayList = new ArrayList<>();
+            for(int i =0;i<jsonTrailersArray.length();i++)
+            {
+                JSONObject jsonObject = jsonTrailersArray.getJSONObject(i);
+                trailer=new Trailer();
+                trailer.setKey(jsonObject.getString(KEY));
+                trailerArrayList.add(trailer);
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return trailerArrayList;
     }
 }

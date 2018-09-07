@@ -1,14 +1,19 @@
 package com.companyname.movies.moviesapp;
 
+import android.annotation.SuppressLint;
+import android.content.AsyncTaskLoader;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -27,8 +32,10 @@ import java.util.ArrayList;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MainActivity extends AppCompatActivity implements FilmsAdapter.FilmsAdapterClickHandeler {
+public class MainActivity extends AppCompatActivity implements FilmsAdapter.FilmsAdapterClickHandeler , android.support.v4.app.LoaderManager.LoaderCallbacks<ArrayList<Film>> {
 
+    private static final int FILM_LOADER_ID = 22;
+    private static final String FILM_LOADER_EXTRA= "query";
     @BindView(R.id.tv_error_message_display)
     TextView mErrorTextView;
     @BindView(R.id.pb_loading_indicator)
@@ -48,7 +55,19 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         mAdapter = new FilmsAdapter(this);
         currentPage = "popular";
         if(isConnected())
-            new FetchFilmsTask().execute("popular");
+        {
+
+            Bundle queryBundle = new Bundle();
+            queryBundle.putString(FILM_LOADER_EXTRA,currentPage);
+            android.support.v4.app.LoaderManager loaderManager = getSupportLoaderManager();
+            android.support.v4.content.Loader<ArrayList<Film>> filmLoader = loaderManager.getLoader(FILM_LOADER_ID);
+            if(filmLoader==null) {
+                loaderManager.initLoader(FILM_LOADER_ID, queryBundle, this);
+            }
+            else
+                loaderManager.restartLoader(FILM_LOADER_ID,queryBundle,this);
+
+        }
         else
         {
             showErrorMessage();
@@ -85,8 +104,18 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         int id = item.getItemId();
         if (id == R.id.menu_popular && !currentPage.equals("popular")) {
             currentPage = "popular";
-            if(isConnected())
-                new FetchFilmsTask().execute("popular");
+            if (isConnected())
+            {
+                Bundle queryBundle = new Bundle();
+                queryBundle.putString(FILM_LOADER_EXTRA,currentPage);
+                android.support.v4.app.LoaderManager loaderManager = getSupportLoaderManager();
+                android.support.v4.content.Loader<ArrayList<Film>> filmLoader = loaderManager.getLoader(FILM_LOADER_ID);
+                if(filmLoader==null) {
+                    loaderManager.initLoader(FILM_LOADER_ID, queryBundle, this);
+                }
+                else
+                    loaderManager.restartLoader(FILM_LOADER_ID,queryBundle,this);
+            }
             else
             {
                 showErrorMessage();
@@ -95,7 +124,17 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         } else if (id == R.id.menu_top_rated && !currentPage.equals("top_rated")) {
             currentPage = "top_rated";
             if(isConnected())
-                new FetchFilmsTask().execute("top_rated");
+            {
+                Bundle queryBundle = new Bundle();
+                queryBundle.putString(FILM_LOADER_EXTRA,currentPage);
+                android.support.v4.app.LoaderManager loaderManager = getSupportLoaderManager();
+                android.support.v4.content.Loader<ArrayList<Film>> filmLoader = loaderManager.getLoader(FILM_LOADER_ID);
+                if(filmLoader==null) {
+                    loaderManager.initLoader(FILM_LOADER_ID, queryBundle, this);
+                }
+                else
+                    loaderManager.restartLoader(FILM_LOADER_ID,queryBundle,this);
+            }
             else
             {
                 showErrorMessage();
@@ -122,53 +161,86 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
                 activeNetwork.isConnectedOrConnecting();
         return isConnected;
     }
-    public class FetchFilmsTask extends AsyncTask<String, Void, ArrayList<Film>> {
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            showLoading();
+
+    @NonNull
+    @Override
+    public android.support.v4.content.Loader<ArrayList<Film>> onCreateLoader(int i, final Bundle bundle) {
+        return new android.support.v4.content.AsyncTaskLoader<ArrayList<Film>>(this) {
+            ArrayList<Film> filmsResult;
+            @Override
+            protected void onStartLoading() {
+                super.onStartLoading();
+                if(bundle==null)
+                    return;
+                if(filmsResult!=null)
+                    deliverResult(filmsResult);
+                else
+                    forceLoad();
+                showLoading();
+            }
+
+            @Nullable
+            @Override
+            public ArrayList<Film> loadInBackground() {
+                String requestType = bundle.getString(FILM_LOADER_EXTRA);
+                URL weatherRequestUrl = null;
+                try {
+                    weatherRequestUrl = new URL(NetworkUtils.getUrl(requestType));
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    String jsonResponse = NetworkUtils
+                            .getResponseFromHttpUrl(weatherRequestUrl);
+                    ArrayList<Film> filmArrayList = JsonUtils.parseFilmsJson(jsonResponse);
+
+                    return filmArrayList;
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+
+            @Override
+            public void deliverResult(@Nullable ArrayList<Film> data) {
+                filmsResult=data;
+                super.deliverResult(data);
+            }
+        };
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        Bundle queryBundle = new Bundle();
+        queryBundle.putString(FILM_LOADER_EXTRA,currentPage);
+        android.support.v4.app.LoaderManager loaderManager = getSupportLoaderManager();
+        android.support.v4.content.Loader<ArrayList<Film>> filmLoader = loaderManager.getLoader(FILM_LOADER_ID);
+        if(filmLoader==null) {
+            loaderManager.initLoader(FILM_LOADER_ID, queryBundle, this);
         }
+        else
+            loaderManager.restartLoader(FILM_LOADER_ID,queryBundle,this);
 
-        @Override
-        protected ArrayList<Film> doInBackground(String... params) {
+    }
 
-            /* If there's no zip code, there's nothing to look up. */
-            if (params.length == 0) {
-                return null;
-            }
-
-            String requestType = params[0];
-            URL weatherRequestUrl = null;
-            try {
-                weatherRequestUrl = new URL(NetworkUtils.getUrl(requestType));
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                String jsonResponse = NetworkUtils
-                        .getResponseFromHttpUrl(weatherRequestUrl);
-                ArrayList<Film> filmArrayList = JsonUtils.parseFilmsJson(jsonResponse);
-
-                return filmArrayList;
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList<Film> s) {
-            super.onPostExecute(s);
-            if (s.size() != 0) {
-                showFilmsList();
-                mAdapter.setmFilmArray(s);
-                mFilmRecyclerView.setAdapter(mAdapter);
-            } else {
-                showErrorMessage();
-            }
+    @Override
+    public void onLoadFinished(@NonNull android.support.v4.content.Loader<ArrayList<Film>> loader, ArrayList<Film> data) {
+        if (data.size() != 0) {
+            showFilmsList();
+            mAdapter.setmFilmArray(data);
+            mFilmRecyclerView.setAdapter(mAdapter);
+        } else {
+            showErrorMessage();
         }
     }
+
+    @Override
+    public void onLoaderReset(@NonNull android.support.v4.content.Loader<ArrayList<Film>> loader) {
+
+    }
+
 
 }
