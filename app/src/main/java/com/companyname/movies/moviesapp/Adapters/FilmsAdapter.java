@@ -13,17 +13,18 @@ import com.companyname.movies.moviesapp.model.Film;
 import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Mohamed Ahmed on 8/6/2018.
  */
 
 public class FilmsAdapter extends RecyclerView.Adapter<FilmsAdapter.FilmViewHolder> {
-    private ArrayList<Film> mFilmArray;
+    private List<Film> mFilmArray;
     private Context mContext;
 
     private final FilmsAdapterClickHandeler mClickHandeler;
-    public void setmFilmArray(ArrayList<Film> mFilmArray) {
+    public void setmFilmArray(List<Film> mFilmArray) {
         this.mFilmArray = mFilmArray;
     }
 

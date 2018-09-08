@@ -1,6 +1,8 @@
 package com.companyname.movies.moviesapp;
 
 import android.annotation.SuppressLint;
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.Observer;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
@@ -16,6 +18,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -33,6 +36,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -46,6 +50,8 @@ public class MovieDetail extends AppCompatActivity implements LoaderManager.Load
     @BindView(R.id.iv_movie_image)ImageView mMovieImage;
     @BindView(R.id.reviews_rv) RecyclerView reviewsRecyclerView;
     @BindView(R.id.trailers_rv) RecyclerView trailersRecyclerView;
+    @BindView(R.id.favorite_button) ImageButton favoriteButton;
+    boolean isFavorite =false;
     ReviewAdapter mAdapter;
     TrailerAdapter mTrailerAdapter;
     private static final String FILM_ID="film_id";
@@ -95,7 +101,24 @@ public class MovieDetail extends AppCompatActivity implements LoaderManager.Load
         new GetTrailers().execute(selectedFilm.getId()+"");
         trailersRecyclerView.setFocusable(false);
 
+        checkIfFavorite();
 
+    }
+
+    private void checkIfFavorite() {
+        final LiveData<List<Film>> favFilms=mDB.filmDao().loadAllFilms();
+        favFilms.observe(this, new Observer<List<Film>>() {
+            @Override
+            public void onChanged(@Nullable List<Film> films) {
+                for(Film f:films){
+                    if(f.getId()==selectedFilm.getId())
+                    {
+                        isFavorite = true;
+                        favoriteButton.setBackgroundResource(R.drawable.ic_star_black_24dp);
+                    }
+                }
+            }
+        });
     }
 
     @SuppressLint("StaticFieldLeak")
@@ -171,12 +194,29 @@ public class MovieDetail extends AppCompatActivity implements LoaderManager.Load
     }
 
     public void onFavoriteClicked(View view) {
-        AppExecutors.getInstance().diskIO().execute(new Runnable() {
-            @Override
-            public void run() {
-                mDB.filmDao().insertFilm(selectedFilm);
-            }
-        });
+        if(isFavorite)
+        {
+            isFavorite=false;
+            favoriteButton.setBackgroundResource(R.drawable.ic_star_border_black_24dp);
+            AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                @Override
+                public void run() {
+                    mDB.filmDao().deleteFilm(selectedFilm);
+                }
+            });
+        }
+        else {
+            isFavorite=true;
+            favoriteButton.setBackgroundResource(R.drawable.ic_star_black_24dp);
+            AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                @Override
+                public void run() {
+                    mDB.filmDao().insertFilm(selectedFilm);
+                }
+            });
+        }
+
+
     }
 
     public class GetTrailers extends AsyncTask<String,Void,ArrayList<Trailer>>
