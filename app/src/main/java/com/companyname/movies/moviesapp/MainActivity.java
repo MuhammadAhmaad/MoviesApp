@@ -1,21 +1,23 @@
 package com.companyname.movies.moviesapp;
 
-import android.annotation.SuppressLint;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.Observer;
-import android.content.AsyncTaskLoader;
+import android.arch.lifecycle.ViewModelProvider;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
+import android.media.MediaActionSound;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -40,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
 
     private static final int FILM_LOADER_ID = 22;
     private static final String FILM_LOADER_EXTRA = "query";
+    private static final String CURRENT_PAGE = "current_page";
     @BindView(R.id.tv_error_message_display)
     TextView mErrorTextView;
     @BindView(R.id.pb_loading_indicator)
@@ -48,7 +51,6 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
     RecyclerView mFilmRecyclerView;
     FilmsAdapter mAdapter;
     String currentPage;
-    private AppDatabase mDB;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,10 +58,21 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
         mFilmRecyclerView.setHasFixedSize(true);
-        mFilmRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        int posterWidth = 500;
+        GridLayoutManager gridLayoutManager =
+                new GridLayoutManager(this, calculateBestSpanCount(posterWidth));
+        mFilmRecyclerView.setLayoutManager(gridLayoutManager);
         mAdapter = new FilmsAdapter(this);
-        currentPage = "popular";
-        if (isConnected()) {
+
+        if (savedInstanceState != null) {
+            currentPage = savedInstanceState.getString(CURRENT_PAGE);
+        } else {
+            currentPage = "popular";
+        }
+
+        if (currentPage.equals("favorites")) {
+            setupViewModel();
+        } else if (isConnected()) {
             Bundle queryBundle = new Bundle();
             queryBundle.putString(FILM_LOADER_EXTRA, currentPage);
             android.support.v4.app.LoaderManager loaderManager = getSupportLoaderManager();
@@ -68,11 +81,11 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
                 loaderManager.initLoader(FILM_LOADER_ID, queryBundle, this);
             } else
                 loaderManager.restartLoader(FILM_LOADER_ID, queryBundle, this);
+
         } else {
             showErrorMessage();
             mErrorTextView.setText("No internet Connection");
         }
-        mDB = AppDatabase.getsInstance(this);
     }
 
     public void showLoading() {
@@ -133,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
                 mErrorTextView.setText("No internet Connection");
             }
         } else if (id == R.id.menu_favorites && !currentPage.equals("favorites")) {
-            reteriveFavorites();
+            setupViewModel();
         }
         return super.onOptionsItemSelected(item);
     }
@@ -153,6 +166,12 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         boolean isConnected = activeNetwork != null &&
                 activeNetwork.isConnectedOrConnecting();
         return isConnected;
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(CURRENT_PAGE, currentPage);
     }
 
     @NonNull
@@ -206,10 +225,10 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         };
     }
 
-    public void reteriveFavorites() {
+    public void setupViewModel() {
         currentPage = "favorites";
-        final LiveData<List<Film>> filmsArrayList = mDB.filmDao().loadAllFilms();
-        filmsArrayList.observe(this, new Observer<List<Film>>() {
+        MainViewModel mainViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        mainViewModel.getFilms().observe(this, new Observer<List<Film>>() {
             @Override
             public void onChanged(@Nullable List<Film> films) {
                 mAdapter.setmFilmArray(films);
@@ -221,7 +240,6 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
     @Override
     protected void onRestart() {
         super.onRestart();
-        Log.e("currrrnnnnnn", currentPage);
         if (currentPage.equals("favorites")) {
             getSupportLoaderManager().destroyLoader(FILM_LOADER_ID);
         } else {
@@ -252,5 +270,26 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
 
     }
 
+    private int calculateBestSpanCount(int posterWidth) {
+        Display display = getWindowManager().getDefaultDisplay();
+        DisplayMetrics outMetrics = new DisplayMetrics();
+        display.getMetrics(outMetrics);
+        float screenWidth = outMetrics.widthPixels;
+        return Math.round(screenWidth / posterWidth);
+    }
 
+    @Override
+    protected void onDestroy() {
+        MainViewModel mainViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        if (!isFinishing()) {
+            LiveData<List<Film>> films = mainViewModel.getFilms();
+            super.onDestroy();
+            MainViewModel newViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+            if (newViewModel != mainViewModel)
+                newViewModel.setFilms(films);
+
+        } else {
+            super.onDestroy();
+        }
+    }
 }

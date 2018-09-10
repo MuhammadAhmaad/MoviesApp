@@ -3,6 +3,7 @@ package com.companyname.movies.moviesapp;
 import android.annotation.SuppressLint;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
@@ -64,6 +65,10 @@ public class MovieDetail extends AppCompatActivity implements LoaderManager.Load
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_movie_detail);
         ButterKnife.bind(this);
+
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
         selectedFilm = (Film)getIntent().getSerializableExtra("selectedFilm");
         getSupportActionBar().setTitle("MovieDetail");
         mMovieTitle.setText(selectedFilm.getTitle());
@@ -105,9 +110,15 @@ public class MovieDetail extends AppCompatActivity implements LoaderManager.Load
 
     }
 
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
+    }
+
     private void checkIfFavorite() {
-        final LiveData<List<Film>> favFilms=mDB.filmDao().loadAllFilms();
-        favFilms.observe(this, new Observer<List<Film>>() {
+        MainViewModel viewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        viewModel.getFilms().observe(this, new Observer<List<Film>>() {
             @Override
             public void onChanged(@Nullable List<Film> films) {
                 for(Film f:films){
