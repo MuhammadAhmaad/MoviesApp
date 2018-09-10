@@ -72,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
 
         if (currentPage.equals("favorites")) {
             setupViewModel();
+            showFilmsList();
         } else if (isConnected()) {
             Bundle queryBundle = new Bundle();
             queryBundle.putString(FILM_LOADER_EXTRA, currentPage);
@@ -278,18 +279,4 @@ public class MainActivity extends AppCompatActivity implements FilmsAdapter.Film
         return Math.round(screenWidth / posterWidth);
     }
 
-    @Override
-    protected void onDestroy() {
-        MainViewModel mainViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
-        if (!isFinishing()) {
-            LiveData<List<Film>> films = mainViewModel.getFilms();
-            super.onDestroy();
-            MainViewModel newViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
-            if (newViewModel != mainViewModel)
-                newViewModel.setFilms(films);
-
-        } else {
-            super.onDestroy();
-        }
-    }
 }
